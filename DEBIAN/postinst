@@ -1,0 +1,8 @@
+#!/bin/bash
+#git config --global user.email "info@dw-lab.de"
+#git config --global user.name "dwlab-info"
+#git config --global credential.helper store
+
+#pip install git
+#pip install git+https://github.com/dtlfwolf/dwlab-basicpy.git
+/opt/dwlab/dwlab-basicservices/setup/bin/00_implement_basicservices.sh
