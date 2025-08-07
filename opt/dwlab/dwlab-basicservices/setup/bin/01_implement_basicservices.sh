@@ -4,11 +4,11 @@
 #
 # Company    = "DW-Lab GmbH"
 # Department = "checkmk"
-# Creation   = "03-Nov-2024"
+# Creation   = "07-Aug-2025"
 # Version    = "1.0"
 # Author     = "Detlef Wolf"
 #
-# Usage:  installation/bin/00_installDW-LabBasicServices.sh
+# Usage:  installation/bin/01_implement_basicservices.sh
 #
 # Description:
 #
@@ -86,5 +86,14 @@ find $DWLab_PackageHome -type f -name '*.sh' -exec chmod +x {} \;
 find $DWLab_PackageHome -type f -name '*.py' -exec chmod +x {} \;
 
 chmod 755 /etc/profile.d/dwlab-basicservices.sh
+
+# Source the python venv bash profile to make the changes effective
+if [ -f /opt/dwlab/venv/bin/activate ]; then
+  source /opt/dwlab/venv/bin/activate
+else
+  echo "DW-Lab: $thisScript:"
+  echo "DW-Lab: /opt/dwlab/venv/bin/activate not found, cannot source it."
+  exit 1
+fi
 exit 0
 
