@@ -92,8 +92,8 @@ if [ -f /opt/dwlab/venv/bin/activate ]; then
   source /opt/dwlab/venv/bin/activate
 else
   echo "DW-Lab: $thisScript:"
-  echo "DW-Lab: /opt/dwlab/venv/bin/activate not found, cannot source it."
-  exit 1
+  echo "DW-Lab: *** Error ***/opt/dwlab/venv/bin/activate not found, cannot source it."
+
 fi
 exit 0
 

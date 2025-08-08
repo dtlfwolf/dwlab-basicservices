@@ -16,16 +16,15 @@ else
     fi
   fi
 
-  ## Expand $PYTHONPATH to include the directory where DW-Lab application extensions go.
-  #dwlab_python_path="$DWLAB_HOME/dwlab-basicservices/src"
-  #if [ -d "$dwlab_python_path" ]; then
-  #  if [ -n "${PYTHONPATH##*${dwlab_python_path}}" ] && [ -n "${PYTHONPATH##*${dwlab_python_path}:*}" ]; then
-  #    export PYTHONPATH="$PYTHONPATH:${dwlab_python_path}"
-  #  else
-  #    if [ -z $PYTHONPATH ]; then
-  #      export PYTHONPATH="${dwlab_python_path}"
-  #    fi
-  #  fi
-  #fi
+  # Activate the Python virtual environment if it exists
+  if [ -f /opt/dwlab/venv/bin/activate ]; then
+      # shellcheck disable=SC1091
+      . /opt/dwlab/venv/bin/activate
+  else
+      echo "DW-Lab: /opt/dwlab/venv/bin/activate not found, cannot source it."
+      echo "DW-Lab: Please ensure that the Python virtual environment is set up correctly."
+  fi
+  
+  
 fi
 
