@@ -1,3 +1,4 @@
+.git/
 .venv/
 dist/
 src/*/__pycache__/
