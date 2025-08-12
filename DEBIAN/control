@@ -1,5 +1,5 @@
 Package: dwlab-basicservices
-Version: 0.6.51
+Version: 0.6.54
 Section: dwlab
 Priority: important
 Depends: python3, python3-pip, python3.12-venv | python3.10-venv

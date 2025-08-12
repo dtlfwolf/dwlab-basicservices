@@ -88,7 +88,7 @@ find $DWLab_PackageHome -type f -name '*.py' -exec chmod +x {} \;
 chmod 755 /etc/profile.d/dwlab-basicservices.sh
 
 # Source the python venv bash profile to make the changes effective
-if [ -f /opt/dwlab/venv/bin/activate ]; then
+if [ -r /opt/dwlab/venv/bin/activate ]; then
   source /opt/dwlab/venv/bin/activate
 else
   echo "DW-Lab: $thisScript:"

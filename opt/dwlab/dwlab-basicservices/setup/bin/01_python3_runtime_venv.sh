@@ -151,32 +151,4 @@ fi
 chmod 755 /opt/dwlab/venv
 
 
-# -------------------------------------------------------------------------------
-# Append activation dwlab venv in /etc/bash.bashrc for interactive shells
-# This is needed to ensure that the dwlab venv is activated in interactive shells
-# This is a workaround for the fact that /etc/profile.d/dwlab-basicservices.sh
-# is not sourced in interactive shells by default.
-# This script should be run as root to modify /etc/bash.bashrc
-# It appends a snippet to /etc/bash.bashrc that activates the dwlab venv
-# when an interactive shell is started.
-# The snippet checks if /etc/profile.d/dwlab.sh exists and sources it.
-# If the file does not exist, it will not activate the venv.
-# --------------------------------------------------------------------------------
-target="/etc/bash.bashrc"
-marker="# Activate dwlab environment for interactive shells"
-
-# Check if the marker already exists
-if grep -qF "$marker" "$target"; then
-    echo "DW-Lab: dwlab environment activation snippet already present in $target"
-else
-    echo "DW-Lab: Appending dwlab environment activation snippet to $target"
-    # Append the snippet
-
-    echo "# Activate dwlab environment for interactive shells" >> "$target"
-    echo "if [ -r /etc/profile.d/dwlab.sh ]; then" >> "$target"
-    echo "    source /etc/profile.d/dwlab.sh" >> "$target"
-    echo "fi" >> "$target"
-
-    echo "DW-Lab: Appended dwlab environment activation snippet to $target"
-fi
 exit 0
