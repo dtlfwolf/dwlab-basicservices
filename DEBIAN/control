@@ -2,9 +2,9 @@ Package: dwlab-basicservices
 Version: 0.6.54
 Section: dwlab
 Priority: important
-Depends: python3, python3-pip, python3.12-venv | python3.10-venv
+Depends: python3, python3-pip, dwlab-basicpy
 Architecture: all
 Essential: no
 Maintainer: DW-Lab GmbH <monitoring@dw-lab.com>
 Description: DW-Lab Basic Services
- These services build the foundation for all packages provide by DW-Lab GmbH.
+ These services build the foundation for all packages provided by the DW-Lab GmbH.

@@ -87,13 +87,4 @@ find $DWLab_PackageHome -type f -name '*.py' -exec chmod +x {} \;
 
 chmod 755 /etc/profile.d/dwlab-basicservices.sh
 
-# Source the python venv bash profile to make the changes effective
-if [ -r /opt/dwlab/venv/bin/activate ]; then
-  source /opt/dwlab/venv/bin/activate
-else
-  echo "DW-Lab: $thisScript:"
-  echo "DW-Lab: *** Error ***/opt/dwlab/venv/bin/activate not found, cannot source it."
-
-fi
-exit 0
 

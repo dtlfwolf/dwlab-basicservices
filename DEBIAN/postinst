@@ -1,16 +1,17 @@
 #!/bin/bash
 # Install dwlab-basicpy
-/opt/dwlab/dwlab-basicservices/setup/bin/00_python3_runtime_venv.sh
+/opt/dwlab/dwlab-basicservices/setup/bin/01_modify_etc_bash_bashrc.sh
 if [ $? != 0 ]
 then
   echo "DW-Lab: $thisScript:"
-  echo "DW-Lab: Error during installation of python3 runtime venv"
+  echo "DW-Lab: Error during modification of /etc/bash.bashrc"
   exit 8
 fi
-/opt/dwlab/dwlab-basicservices/setup/bin/01_implement_basicservices.sh
+
+/opt/dwlab/dwlab-basicservices/setup/bin/02_implement_basicservices.sh
 if [ $? != 0 ]
 then
   echo "DW-Lab: $thisScript:"
-  echo "DW-Lab: Error during installation of dwlab-basicservices"
+  echo "DW-Lab: Error during implementation of dwlab-basicservices"
   exit 8
 fi
