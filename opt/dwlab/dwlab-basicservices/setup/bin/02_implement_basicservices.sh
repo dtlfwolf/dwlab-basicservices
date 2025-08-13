@@ -68,17 +68,6 @@ export DWLab_EnvironmentHome=$DIR
 echo "DWLab_EnvironmentHome=$DWLab_EnvironmentHome"
 #
 
-environment=$(basename $DWLab_EnvironmentHome)
-source "/opt/dwlab/$environment/bin/dwlab_bash_yaml.sh"
-if [ $? != 0 ]
-then
-  echo "DW-Lab: $thisScript:"
-  echo "DW-Lab: Cannot source file /opt/dwlab/$environment/bin/dwlab_bash_yaml.sh"
-  exit 8
-fi
-create_variables "/opt/dwlab/$environment/etc/dw-lab_InstallationSettings.yaml"
-
-
 chmod 755 /opt/dwlab
 find $DWLab_PackageHome -type f -exec chmod 755 {} \;
 

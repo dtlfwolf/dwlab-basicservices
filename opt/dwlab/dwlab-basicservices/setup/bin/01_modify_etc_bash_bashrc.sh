@@ -49,8 +49,8 @@ else
     echo "DW-Lab: Appending dwlab environment activation snippet to $target"
     # Append the snippet
 
-    echo "# Activate dwlab environment for interactive shells" >> "$target"
-    echo "echo \"DW-Lab: Activating dwlab environment for interactive shells...\"" >> "$target"
+    echo "# Activate dwlab environment for all shells" >> "$target"
+    echo "echo \"DW-Lab: Activating dwlab environment for all shells...\"" >> "$target"
     echo "if [ -r /usr/local/bin/dwlab.sh ]; then" >> "$target"
     echo "    source /usr/local/bin/dwlab.sh" >> "$target"
     echo "fi" >> "$target"
