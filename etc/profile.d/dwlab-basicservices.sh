@@ -16,15 +16,6 @@ else
     fi
   fi
 
-  # Activate the Python virtual environment if it exists
-  if [ -f /opt/dwlab/venv/bin/activate ]; then
-      # shellcheck disable=SC1091
-      echo "DW-Lab: Sourcing the Python virtual environment at /opt/dwlab/venv/. "
-      . /opt/dwlab/venv/bin/activate
-  else
-      echo "DW-Lab: /opt/dwlab/venv/bin/activate not found, cannot source it."
-      echo "DW-Lab: Please ensure that the Python virtual environment is set up correctly."
-  fi
   
   
 fi
