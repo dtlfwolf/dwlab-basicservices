@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install dwlab-basicpy
+# Install dwlabbasicpy
 /opt/dwlab/dwlab-basicservices/setup/bin/01_modify_etc_bash_bashrc.sh
 if [ $? != 0 ]
 then

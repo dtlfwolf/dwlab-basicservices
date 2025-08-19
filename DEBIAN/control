@@ -2,7 +2,7 @@ Package: dwlab-basicservices
 Version: 0.6.1
 Section: dwlab
 Priority: important
-Depends: python3, python3-pip, dwlab-basicpy
+Depends: python3, python3-pip, dwlabbasicpy
 Architecture: all
 Essential: no
 Maintainer: DW-Lab GmbH <monitoring@dw-lab.com>
