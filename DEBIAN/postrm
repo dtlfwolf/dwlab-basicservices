@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -euo pipefail
+
+action="${1:-}"
+
+case "$action" in
+  purge)
+    rmdir --ignore-fail-on-non-empty /var/log/dwlab 2>/dev/null || true
+    rmdir --ignore-fail-on-non-empty /opt/dwlab/dwlab-basicservices/log 2>/dev/null || true
+    rmdir --ignore-fail-on-non-empty /opt/dwlab/dwlab-basicservices 2>/dev/null || true
+    rmdir --ignore-fail-on-non-empty /opt/dwlab 2>/dev/null || true
+    ;;
+esac
+
+exit 0

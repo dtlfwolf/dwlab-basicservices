@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Package payload is self-contained. Keep post-install quiet and side-effect free.
+exit 0

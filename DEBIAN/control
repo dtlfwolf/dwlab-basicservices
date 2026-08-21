@@ -1,0 +1,10 @@
+Package: dwlab-basicservices
+Version: 0.20.0
+Section: dwlab
+Priority: important
+Depends: bash
+Architecture: all
+Essential: no
+Maintainer: DW-Lab GmbH <monitoring@dw-lab.com>
+Description: DW-Lab Basic Services
+ These services build the foundation for all packages provided by the DW-Lab GmbH.
