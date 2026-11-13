@@ -1,1 +1,2 @@
 /etc/dwlab/dwlab-basicservices/logging.yaml
+/etc/profile.d/dwlab-python.sh
