@@ -99,7 +99,7 @@ class TestSecureTransfer:
 
     @pytest.mark.parametrize("source", [
         "-option:/file", "host:relative", "host:/file\nmalicious",
-        "host:/packages/*.deb", "host:/directory/", "host:/directory/..",
+        "host:/packages/*/file.deb", "host:/directory/", "host:/directory/..",
     ])
     def test_invalid_source_fails_before_ssh(self, tmp_path, source):
         calls = []
@@ -281,6 +281,7 @@ class TestRecursiveTransfer:
 
             def copy(self, source, destination, **options):
                 calls.append((source, destination, options))
+                return 1
 
         monkeypatch.setattr(transfer, "SecureTransfer", FakeTransfer)
         assert transfer.TransferCli().run([
@@ -332,3 +333,122 @@ class TestRecursiveTransfer:
         assert len(calls) == 2
         for command, _ in calls:
             assert command[5:7] == ["-J", "user@jump"]
+
+
+class TestWildcardTransfer:
+    def runner(self, calls):
+        def run(command, **kwargs):
+            calls.append(command)
+            arguments = shlex.split(command[-1])
+            if arguments[:2] == ["sudo", "-n"]:
+                return subprocess.run(arguments[2:], **kwargs)
+            return subprocess.run(["/bin/sh", "-c", command[-1]], **kwargs)
+        return run
+
+    @pytest.mark.parametrize("remote", [False, True])
+    def test_pattern_copies_regular_files_only(self, tmp_path, remote):
+        source = tmp_path / "source 'quoted'"
+        source.mkdir()
+        for name in ("a-dwhome.deb", "b-dwhome.deb", ".dwhome.deb"):
+            (source / name).write_text(name)
+        (source / "unrelated.txt").write_text("not selected")
+        (source / "directory-dwhome.deb").mkdir()
+        (source / "link-dwhome.deb").symlink_to(source / "unrelated.txt")
+        destination = tmp_path / "destination"
+        destination.mkdir()
+        calls = []
+        target = f"target:{destination}" if remote else str(destination)
+        count = transfer.SecureTransfer(self.runner(calls), jump="user@jump").copy(
+            f"source:{source}/*dwhome*.deb", target
+        )
+        assert count == 3
+        assert sorted(path.name for path in destination.iterdir()) == [
+            ".dwhome.deb", "a-dwhome.deb", "b-dwhome.deb",
+        ]
+        for path in destination.iterdir():
+            assert path.read_text() == path.name
+            assert path.stat().st_mode & 0o777 == 0o600
+        for command in calls:
+            assert command[5:7] == ["-J", "user@jump"]
+        assert shlex.split(calls[0][-1])[-3:] == ["-name", "*dwhome*.deb", "-print0"]
+
+    def test_no_matches_does_not_connect_destination(self, tmp_path):
+        calls = []
+        with pytest.raises(transfer.TransferError, match="No regular files match"):
+            transfer.SecureTransfer(self.runner(calls)).copy(
+                f"source:{tmp_path}/*dwhome*.deb", "target:/tmp"
+            )
+        assert len(calls) == 1
+
+    @pytest.mark.parametrize("manifest", [
+        b"/outside/client.deb\0", b"/protected/not-a-match.txt\0",
+        b"/protected/client.deb", b"/protected/client.deb\0/protected/client.deb\0",
+    ])
+    def test_invalid_manifest_is_rejected(self, tmp_path, manifest):
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append(command)
+            return subprocess.CompletedProcess(command, 0, stdout=manifest)
+
+        with pytest.raises(transfer.TransferError):
+            transfer.SecureTransfer(run).copy("source:/protected/*.deb", str(tmp_path))
+        assert len(calls) == 1
+        assert list(tmp_path.iterdir()) == []
+
+    def test_pattern_cannot_be_recursive(self, tmp_path):
+        with pytest.raises(transfer.TransferError, match="cannot be combined"):
+            transfer.SecureTransfer().copy(
+                "source:/protected/*.deb", str(tmp_path), recursive=True
+            )
+
+    def test_more_than_1000_matches_is_rejected(self, tmp_path):
+        manifest = b"".join(f"/protected/{index}.deb\0".encode() for index in range(1001))
+
+        def run(command, **kwargs):
+            return subprocess.CompletedProcess(command, 0, stdout=manifest)
+
+        with pytest.raises(transfer.TransferError, match="more than 1000"):
+            transfer.SecureTransfer(run).copy("source:/protected/*.deb", str(tmp_path))
+
+    def test_literal_glob_characters_in_match_do_not_trigger_rediscovery(self, tmp_path):
+        source = tmp_path / "source"
+        source.mkdir()
+        name = "client[1].deb"
+        (source / name).write_text("literal")
+        destination = tmp_path / "destination"
+        destination.mkdir()
+        calls = []
+        assert transfer.SecureTransfer(self.runner(calls)).copy(
+            f"source:{source}/*.deb", str(destination)
+        ) == 1
+        assert (destination / name).read_text() == "literal"
+        assert len(calls) == 2
+
+    def test_later_failure_is_reported_without_publishing_partial_file(self, tmp_path):
+        source = tmp_path / "source"
+        source.mkdir()
+        (source / "a.deb").write_text("complete")
+        (source / "b.deb").write_text("second")
+        destination = tmp_path / "destination"
+        destination.mkdir()
+        normal = self.runner([])
+
+        def run(command, **kwargs):
+            arguments = shlex.split(command[-1])
+            if arguments[:3] == ["sudo", "-n", "cat"] and arguments[-1].endswith("/b.deb"):
+                kwargs["stdout"].write(b"partial")
+                raise subprocess.CalledProcessError(1, command, stderr=b"source read failed")
+            return normal(command, **kwargs)
+
+        with pytest.raises(transfer.TransferError, match="source read failed"):
+            transfer.SecureTransfer(run).copy(f"source:{source}/*.deb", str(destination))
+        assert list(destination.iterdir()) == [destination / "a.deb"]
+        assert (destination / "a.deb").read_text() == "complete"
+
+    def test_failed_listing_is_not_treated_as_no_matches(self, tmp_path):
+        def run(command, **kwargs):
+            raise subprocess.CalledProcessError(1, command, stderr=b"sudo denied")
+
+        with pytest.raises(transfer.TransferError, match="sudo denied"):
+            transfer.SecureTransfer(run).copy("source:/protected/*.deb", str(tmp_path))

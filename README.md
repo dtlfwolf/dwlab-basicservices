@@ -1,11 +1,11 @@
 # DW-Lab Basic Services
 
 This standalone Debian package provides the shared shell helpers and environment
-profiles used by DW-Lab products. Version 0.22.0 provides secure file and subtree
-transfer using Bash, system Python 3, OpenSSH client and coreutils. It does not
+profiles used by DW-Lab products. Version 0.23.0 provides secure file and subtree
+transfer using Bash, system Python 3, OpenSSH client, coreutils and findutils. It does not
 install wheels, a virtual environment or a compiler toolchain.
 
-## Secure File Transfer (0.22.0)
+## Secure File Transfer (0.23.0)
 
 Run this on your workstation (not with local sudo):
 
@@ -18,7 +18,8 @@ Run this on your workstation (not with local sudo):
 The command is also on PATH after a new login or sourcing
 `/etc/profile.d/dwlab-basicservices.sh`. Install this basicservices package on
 the initiating workstation; neither remote endpoint needs the helper installed.
-The remote source needs sudo and cat; recursive reads additionally need GNU tar.
+The remote source needs sudo and cat; filename patterns additionally need GNU
+find, and recursive reads additionally need GNU tar.
 The remote destination needs a POSIX shell and coreutils, including mktemp,
 sha256sum and mv. Recursive remote destinations additionally require Python 3.10
 or newer; the installed validator is sent over SSH, not installed on that host.
@@ -26,13 +27,36 @@ Source and destination require working noninteractive SSH authentication and
 verified host keys. Configure usernames, keys, ports or jump hosts in
 `~/.ssh/config`; the tool never disables host verification or forwards an agent.
 The source user needs existing sudo permission to read the file with
-`sudo -n cat -- /absolute/file`, or permission to run the source-side tar command
-for recursive reads. No sudo policy is installed or expanded.
+`sudo -n cat -- /absolute/file`, permission to run the source-side find command
+for filename patterns, or the tar command for recursive reads. No sudo policy
+is installed or expanded.
 
-Use one exact source path, not globs, SCP URLs or
-bracketed IPv6 addresses (use an SSH alias for IPv6). The destination must be an
+Use an exact source path or a quoted filename pattern, not SCP URLs or bracketed
+IPv6 addresses (use an SSH alias for IPv6). The destination must be an
 existing writable directory, either local or remote. For a local copy, replace
 the destination with `./` or another directory. Paths with spaces must be quoted.
+
+### Filename Patterns
+
+```bash
+dwlab-scp.sh \
+  'dwlab@dwlab-cmkdev.dw-lab.de:/var/lib/dwlab/dwlab-cmkcentralserver/packages/*dwhome*.deb' \
+  dwlab@dwlab-cmkdev-dwhome.dwhome.de:/tmp/
+```
+
+Version 0.23.0 supports `*`, `?` and bracket patterns in the final filename only.
+Quote the complete source argument so your workstation shell does not expand it.
+The source listing runs with sudo, is NUL-delimited and is validated before file
+reads. Only direct-child regular files match, not directories or symlinks. No
+matches is an error; more than 1000 matches is refused. Patterns in directory
+components and patterns combined with `-r` are not supported.
+
+All matching files are copied in sorted order; the helper does not choose a
+latest version. Narrow the pattern if old releases are present. Each file is
+published privately and atomically, but a multi-file batch is not a transaction:
+if a later file fails, earlier successful copies remain. A failed batch returns
+nonzero rather than reporting overall success. `-J` and per-endpoint jump
+overrides also apply to wildcard listing and transfers.
 
 ### Jump Hosts And Recursive Copies
 
@@ -108,7 +132,7 @@ Supply the independently available DW-Lab build-helper directory explicitly:
 ```bash
 make DWLAB_HELPERS_ROOT=/path/to/dwlab-helpers PACKAGES_DIR=/path/to/artifacts build
 python3 -m pytest -q tests
-dpkg-deb -c /path/to/artifacts/dwlab-basicservices_0.22.0_all.deb
+dpkg-deb -c /path/to/artifacts/dwlab-basicservices_0.23.0_all.deb
 ```
 
 The regression tests require Bash, Python/pytest and the standard Debian
@@ -119,7 +143,7 @@ DW-Lab products are required.
 ## Install, Upgrade And Remove
 
 ```bash
-sudo apt install ./dwlab-basicservices_0.22.0_all.deb
+sudo apt install ./dwlab-basicservices_0.23.0_all.deb
 dpkg-query -S /etc/profile.d/dwlab-python.sh
 . /etc/profile.d/dwlab-python.sh
 command -v dwlabovpn

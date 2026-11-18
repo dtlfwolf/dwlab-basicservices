@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import fnmatch
 import hashlib
 import inspect
 import logging
@@ -167,15 +168,59 @@ mv -fT -- "$temporary" "$directory/$filename"
             destination_jump if destination_jump is not None else jump
         )
 
-    def copy(self, source: str, destination: str, *, recursive: bool = False) -> None:
-        """Copy one literal remote file or subtree into an existing directory."""
+    def copy(self, source: str, destination: str, *, recursive: bool = False) -> int:
+        """Copy a remote source or filename pattern; return the transfer count."""
         origin = RemoteLocation.parse(source)
+        target = RemoteLocation.parse(destination) if ":" in destination else None
         if any(char in origin.path for char in "*?[]"):
-            raise TransferError("Specify one exact source filename; wildcards are not supported.")
+            if recursive or origin.path.endswith("/"):
+                raise TransferError("Filename wildcards cannot be combined with recursive copying.")
+            origins = self._matching_sources(origin)
+        else:
+            origins = [origin]
+        for item in origins:
+            self._copy_one(item, target, destination, recursive=recursive)
+        return len(origins)
+
+    def _matching_sources(self, origin: RemoteLocation) -> list[RemoteLocation]:
+        directory = PurePosixPath(origin.path).parent
+        pattern = PurePosixPath(origin.path).name
+        if any(char in str(directory) for char in "*?[]"):
+            raise TransferError("Wildcards are supported only in the filename, not directory paths.")
+        command = shlex.join([
+            "sudo", "-n", "find", str(directory), "-mindepth", "1",
+            "-maxdepth", "1", "-type", "f", "-name", pattern, "-print0",
+        ])
+        result = self._ssh(
+            origin.host, command, jump=self._source_jump,
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+        )
+        manifest = result.stdout
+        if not manifest:
+            raise TransferError(f"No regular files match the source pattern: {origin.path}")
+        if not manifest.endswith(b"\0"):
+            raise TransferError("Invalid source file listing.")
+        entries = manifest[:-1].split(b"\0")
+        if len(entries) > 1000:
+            raise TransferError("Source pattern matches more than 1000 files; narrow the pattern.")
+        origins = []
+        seen = set()
+        for entry in entries:
+            path = os.fsdecode(entry)
+            parsed = RemoteLocation.parse(f"{origin.host}:{path}")
+            member = PurePosixPath(parsed.path)
+            if (member.parent != directory or path in seen
+                    or not fnmatch.fnmatchcase(member.name, pattern)):
+                raise TransferError("Unexpected entry in source file listing.")
+            seen.add(path)
+            origins.append(parsed)
+        return sorted(origins, key=lambda item: item.path)
+
+    def _copy_one(self, origin: RemoteLocation, target: RemoteLocation | None,
+                  destination: str, *, recursive: bool) -> None:
         name = PurePosixPath(origin.path).name
         if (origin.path.endswith("/") and not recursive) or name in {"", ".", ".."}:
             raise TransferError("Specify a named source; use -r for a directory.")
-        target = RemoteLocation.parse(destination) if ":" in destination else None
         with tempfile.TemporaryDirectory(prefix="dwlab-scp-") as staging:
             staged_file = Path(staging) / "payload"
             descriptor = os.open(staged_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -240,12 +285,13 @@ mv -fT -- "$temporary" "$directory/$filename"
             self._ssh(target.host, command, jump=self._destination_jump,
                       stdin=source, stdout=subprocess.DEVNULL)
 
-    def _ssh(self, host: str, command: str, *, jump: str | None = None, **streams) -> None:
+    def _ssh(self, host: str, command: str, *, jump: str | None = None,
+             **streams) -> subprocess.CompletedProcess:
         options = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=15"]
         if jump:
             options.extend(["-J", jump])
         try:
-            self._runner(
+            return self._runner(
                 options + ["--", host, command],
                 check=True, stderr=subprocess.PIPE, **streams,
             )
@@ -281,7 +327,7 @@ class TransferCli:
         parser.add_argument("-J", "--jump", help="SSH jump host(s) for both endpoints")
         parser.add_argument("--source-jump", help="Override source jump host(s); 'none' for direct")
         parser.add_argument("--destination-jump", help="Override destination jump host(s); 'none' for direct")
-        parser.add_argument("source", help="USER@HOST:/absolute/path (no wildcards)")
+        parser.add_argument("source", help="USER@HOST:/absolute/path (quote filename wildcards)")
         parser.add_argument("destination", help="Local directory or USER@HOST:/directory")
         args = parser.parse_args(argv)
         logger = logging.Logger("dwlab-scp")
@@ -291,8 +337,11 @@ class TransferCli:
         logger.addHandler(handler)
         try:
             logger.info("Transfer started.")
-            SecureTransfer(jump=args.jump, source_jump=args.source_jump,
-                           destination_jump=args.destination_jump).copy(
+            transfer = SecureTransfer(
+                jump=args.jump, source_jump=args.source_jump,
+                destination_jump=args.destination_jump,
+            )
+            count = transfer.copy(
                 args.source, args.destination, recursive=args.recursive
             )
         except (TransferError, OSError, tarfile.TarError) as exc:
@@ -301,7 +350,7 @@ class TransferCli:
         except KeyboardInterrupt:
             logger.error("Transfer interrupted.")
             return 130
-        logger.info("Transfer completed successfully (private destination permissions).")
+        logger.info("Transfer completed successfully: %s item(s) (private permissions).", count)
         return 0
 
 
