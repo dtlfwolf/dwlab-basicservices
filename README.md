@@ -1,11 +1,11 @@
 # DW-Lab Basic Services
 
 This standalone Debian package provides the shared shell helpers and environment
-profiles used by DW-Lab products. Version 0.21.0 also provides secure file
+profiles used by DW-Lab products. Version 0.22.0 provides secure file and subtree
 transfer using Bash, system Python 3, OpenSSH client and coreutils. It does not
 install wheels, a virtual environment or a compiler toolchain.
 
-## Secure File Transfer (0.21.0)
+## Secure File Transfer (0.22.0)
 
 Run this on your workstation (not with local sudo):
 
@@ -18,31 +18,73 @@ Run this on your workstation (not with local sudo):
 The command is also on PATH after a new login or sourcing
 `/etc/profile.d/dwlab-basicservices.sh`. Install this basicservices package on
 the initiating workstation; neither remote endpoint needs the helper installed.
-The remote source needs sudo and cat; the remote destination needs a POSIX shell
-and coreutils, including mktemp, sha256sum and mv.
+The remote source needs sudo and cat; recursive reads additionally need GNU tar.
+The remote destination needs a POSIX shell and coreutils, including mktemp,
+sha256sum and mv. Recursive remote destinations additionally require Python 3.10
+or newer; the installed validator is sent over SSH, not installed on that host.
 Source and destination require working noninteractive SSH authentication and
 verified host keys. Configure usernames, keys, ports or jump hosts in
 `~/.ssh/config`; the tool never disables host verification or forwards an agent.
 The source user needs existing sudo permission to read the file with
-`sudo -n cat -- /absolute/file`. No sudo policy is installed or expanded.
+`sudo -n cat -- /absolute/file`, or permission to run the source-side tar command
+for recursive reads. No sudo policy is installed or expanded.
 
-Only one exact source file is supported, not globs, directories, SCP URLs or
+Use one exact source path, not globs, SCP URLs or
 bracketed IPv6 addresses (use an SSH alias for IPv6). The destination must be an
 existing writable directory, either local or remote. For a local copy, replace
 the destination with `./` or another directory. Paths with spaces must be quoted.
 
-The helper uses SSH streams, not remote archive extraction. Local staging uses
+### Jump Hosts And Recursive Copies
+
+```bash
+dwlab-scp.sh -r -J detlef@jump.example.org \
+  dwlab@source.example.org:/protected/release-directory \
+  dwlab@target.example.org:/tmp/
+```
+
+`-J [user@]host[:port]` applies to both source and destination connections.
+Comma-separated jump chains are supported. Use SSH aliases for IPv6 jump hosts.
+For different routes, use `--source-jump` and `--destination-jump`; the explicit
+value `none` omits the command-line jump override for that endpoint (SSH config
+still applies). For example, when only the destination requires a jump:
+
+```bash
+dwlab-scp.sh -r --destination-jump detlef@jump.example.org \
+  dwlab@source.example.org:/protected/release-directory \
+  dwlab@target.example.org:/tmp/
+```
+
+`-r` copies the named directory, including hidden files and empty directories,
+to `<destination-directory>/<source-basename>`. Existing same-name files,
+directories or symlinks are refused: there is no recursive merge or replacement.
+The source root itself cannot be `/`. Symlinks, hardlinks, sparse archive entries,
+special files, duplicate entries, control-character names and path traversal are
+rejected before destination transfer. The validator allows at most 100000 archive
+entries and 100 GiB of logical file content. The source should be quiescent;
+this is a transfer helper, not a consistent live-filesystem backup.
+
+Directories receive mode 0700; files receive 0600, or 0700 if the source file has
+owner execute permission. Group/other access and privileged mode bits are never
+preserved. Ownership is the destination login identity. This protects private
+keys but intentionally differs from a metadata-preserving `scp -r` or backup.
+
+Local staging uses
 a private temporary directory and file. A failed source read never publishes a
-partial destination. Destination publication uses a mode-0600 temporary file
+partial destination. Single-file publication uses a mode-0600 temporary file
 and atomic replacement in the destination directory, with SHA-256 verification
 before remote publication; a final-path symlink is
-replaced, not followed. Existing same-name files are replaced. The caller must
+replaced, not followed. Existing same-name files are replaced in single-file
+mode only. Recursive transfers use a validated tar stream, manual regular-file
+extraction into a private directory and a final rename; no `extractall` or
+unvalidated remote tar extraction is used. Remote uploads are checked against
+SHA-256 before extraction. The caller must
 trust the destination directory and its owner; private workstation directories
 are preferred. Source modes and directory permissions remain unchanged.
 Normal completion and failures clean up local staging; remote staging is cleaned
 on normal completion, command failure and handled signals. SIGKILL, host crashes
 or power loss can leave private staging files requiring administrator cleanup.
-Only file bytes are copied, not ownership, timestamps or executable permissions.
+Single-file mode copies only file bytes, not ownership, timestamps or executable
+permissions. Recursive mode retains owner execute only, as described above.
 Install packages with sudo on the target afterwards, then remove transfer copies.
 Errors go to stderr and return status 1 (interruption 130, usage error 2).
 
@@ -66,7 +108,7 @@ Supply the independently available DW-Lab build-helper directory explicitly:
 ```bash
 make DWLAB_HELPERS_ROOT=/path/to/dwlab-helpers PACKAGES_DIR=/path/to/artifacts build
 python3 -m pytest -q tests
-dpkg-deb -c /path/to/artifacts/dwlab-basicservices_0.21.0_all.deb
+dpkg-deb -c /path/to/artifacts/dwlab-basicservices_0.22.0_all.deb
 ```
 
 The regression tests require Bash, Python/pytest and the standard Debian
@@ -77,7 +119,7 @@ DW-Lab products are required.
 ## Install, Upgrade And Remove
 
 ```bash
-sudo apt install ./dwlab-basicservices_0.21.0_all.deb
+sudo apt install ./dwlab-basicservices_0.22.0_all.deb
 dpkg-query -S /etc/profile.d/dwlab-python.sh
 . /etc/profile.d/dwlab-python.sh
 command -v dwlabovpn

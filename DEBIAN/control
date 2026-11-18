@@ -1,8 +1,8 @@
 Package: dwlab-basicservices
-Version: 0.21.0
+Version: 0.22.0
 Section: dwlab
 Priority: important
-Depends: bash, python3, openssh-client, coreutils
+Depends: bash, python3 (>= 3.10), openssh-client, coreutils, tar
 Architecture: all
 Essential: no
 Maintainer: DW-Lab GmbH <monitoring@dw-lab.com>
