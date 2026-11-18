@@ -60,3 +60,8 @@ class TestPythonProfile:
         subprocess.run(["dpkg-deb", "-e", str(archive), str(metadata)], check=True)
         assert (payload / "etc/profile.d/dwlab-python.sh").read_bytes() == PROFILE.read_bytes()
         assert "/etc/profile.d/dwlab-python.sh" in (metadata / "conffiles").read_text().splitlines()
+        helper = payload / "opt/dwlab/dwlab-basicservices/bin/dwlab-scp.sh"
+        implementation = payload / "opt/dwlab/dwlab-basicservices/lib/dwlab_scp.py"
+        assert helper.is_file() and implementation.is_file()
+        result = subprocess.run(["bash", str(helper), "--help"], capture_output=True)
+        assert result.returncode == 0

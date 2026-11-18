@@ -1,8 +1,50 @@
 # DW-Lab Basic Services
 
 This standalone Debian package provides the shared shell helpers and environment
-profiles used by DW-Lab products. It depends only on Bash; it does not install
-Python, wheels, a virtual environment or a compiler toolchain.
+profiles used by DW-Lab products. Version 0.21.0 also provides secure file
+transfer using Bash, system Python 3, OpenSSH client and coreutils. It does not
+install wheels, a virtual environment or a compiler toolchain.
+
+## Secure File Transfer (0.21.0)
+
+Run this on your workstation (not with local sudo):
+
+```bash
+/opt/dwlab/dwlab-basicservices/bin/dwlab-scp.sh \
+  dwlab@dwlab-cmkdev.dw-lab.de:/var/lib/dwlab/dwlab-cmkcentralserver/packages/dwlab-dwhome-cmkdev-dw-lab.com-2.4.0p35-0.7.12+generator0.5.9.deb \
+  dwlab@dwlab-cmkdev-dwhome.dwhome.de:/tmp/
+```
+
+The command is also on PATH after a new login or sourcing
+`/etc/profile.d/dwlab-basicservices.sh`. Install this basicservices package on
+the initiating workstation; neither remote endpoint needs the helper installed.
+The remote source needs sudo and cat; the remote destination needs a POSIX shell
+and coreutils, including mktemp, sha256sum and mv.
+Source and destination require working noninteractive SSH authentication and
+verified host keys. Configure usernames, keys, ports or jump hosts in
+`~/.ssh/config`; the tool never disables host verification or forwards an agent.
+The source user needs existing sudo permission to read the file with
+`sudo -n cat -- /absolute/file`. No sudo policy is installed or expanded.
+
+Only one exact source file is supported, not globs, directories, SCP URLs or
+bracketed IPv6 addresses (use an SSH alias for IPv6). The destination must be an
+existing writable directory, either local or remote. For a local copy, replace
+the destination with `./` or another directory. Paths with spaces must be quoted.
+
+The helper uses SSH streams, not remote archive extraction. Local staging uses
+a private temporary directory and file. A failed source read never publishes a
+partial destination. Destination publication uses a mode-0600 temporary file
+and atomic replacement in the destination directory, with SHA-256 verification
+before remote publication; a final-path symlink is
+replaced, not followed. Existing same-name files are replaced. The caller must
+trust the destination directory and its owner; private workstation directories
+are preferred. Source modes and directory permissions remain unchanged.
+Normal completion and failures clean up local staging; remote staging is cleaned
+on normal completion, command failure and handled signals. SIGKILL, host crashes
+or power loss can leave private staging files requiring administrator cleanup.
+Only file bytes are copied, not ownership, timestamps or executable permissions.
+Install packages with sudo on the target afterwards, then remove transfer copies.
+Errors go to stderr and return status 1 (interruption 130, usage error 2).
 
 ## Shared Python Profile (0.20.1)
 
@@ -24,7 +66,7 @@ Supply the independently available DW-Lab build-helper directory explicitly:
 ```bash
 make DWLAB_HELPERS_ROOT=/path/to/dwlab-helpers PACKAGES_DIR=/path/to/artifacts build
 python3 -m pytest -q tests
-dpkg-deb -c /path/to/artifacts/dwlab-basicservices_0.20.1_all.deb
+dpkg-deb -c /path/to/artifacts/dwlab-basicservices_0.21.0_all.deb
 ```
 
 The regression tests require Bash, Python/pytest and the standard Debian
@@ -35,7 +77,7 @@ DW-Lab products are required.
 ## Install, Upgrade And Remove
 
 ```bash
-sudo apt install ./dwlab-basicservices_0.20.1_all.deb
+sudo apt install ./dwlab-basicservices_0.21.0_all.deb
 dpkg-query -S /etc/profile.d/dwlab-python.sh
 . /etc/profile.d/dwlab-python.sh
 command -v dwlabovpn
